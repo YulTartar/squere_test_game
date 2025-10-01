@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Квадраты — игра</title>
+    <style>
+        :root{
+          --board-bg:#ffffff;
+          --grid:#cfcfcf;
+          --cell-size:56px;
+          --board-padding:18px;
+          --black-chip:#000000;
+          --white-chip:#ffffff;
+          --accent:#2b7dff;
+        }
+        body{
+          font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+          background: linear-gradient(180deg,#f6f8fb,#ffffff);
+          margin:0;
+          padding:24px;
+          color:#222;
+          display:flex;
+          gap:24px;
+          align-items:flex-start;
+          justify-content:center;
+          min-height:100vh;
+        }
+
+        .wrap {
+          display:flex;
+          gap:24px;
+          align-items:flex-start;
+        }
+
+        .panel {
+          background: #fff;
+        border-radius:12px;
+        box-shadow: 0 6px 20px rgba(30,40,50,0.08);
+        padding:16px;
+        display: inline-block;
+        max-width: 100%;
+        }
+
+        h1{
+          margin:0 0 10px 0;
+          font-size:18px;
+        }
+
+        .controls {
+          display:flex;
+          gap:8px;
+          align-items:center;
+          margin-bottom:12px;
+          flex-wrap:wrap;
+        }
+
+        select, button, input[type="number"] {
+          padding:6px 8px;
+          border-radius:6px;
+          border:1px solid #d7d7d7;
+          background:#fff;
+          font-size:14px;
+        }
+        button.primary {
+          background:var(--accent);
+          color:#fff;
+          border:none;
+          cursor:pointer;
+        }
+        button:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .info {
+          margin-top:10px;
+          font-size:13px;
+          color:#555;
+        }
+
+
+        .board-container {
+          display: flex;
+           justify-content: center;  /* доска по центру */
+           align-items: center;
+           overflow-x: auto;
+        }
+
+        .board {
+          display:inline-grid;
+          gap:0;
+          background:transparent;
+          position:relative;
+          user-select:none;
+        }
+
+
+        .cell {
+          width:var(--cell-size);
+          height:var(--cell-size);
+          border:1px solid var(--grid);
+          box-sizing:border-box;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:rgba(255,255,255,0.6);
+          cursor: pointer;
+          transition: background .12s;
+        }
+        .cell:hover { background: #fbfbff; }
+
+        .chip {
+          width:64%;
+          height:64%;
+          border-radius:50%;
+          box-shadow: 0 3px 6px rgba(0,0,0,0.18) inset;
+        }
+        .chip.black {
+          background: var(--black-chip);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .chip.white {
+          background: var(--white-chip);
+          border: 2px solid rgba(0,0,0,0.15);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .legend {
+          display:flex;
+          gap:12px;
+          margin-top:12px;
+          align-items:center;
+        }
+        .legend .item { display:flex; gap:6px; align-items:center; font-size:13px; color:#444; }
+        .legend .sw { width:18px; height:18px; border-radius:50%; border:1px solid #ddd; display:inline-block; }
+        .legend .sb { width:18px; height:18px; border-radius:50%; background:#000; display:inline-block; }
+
+        @media (max-width:900px){
+          body{ padding:12px; }
+          .panel{ width:320px; }
+          :root{ --cell-size:44px; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="panel">
+        <h1>Квадраты — игра</h1>
+
+        <div class="controls">
+            <label>Размер:
+                <input id="sizeInput" type="number" min="3" max="20" value="8" style="width:68px; margin-left:6px"/>
+            </label>
+
+            <label>Твоя фишка:
+                <select id="playerColor" style="margin-left:6px">
+                    <option value="W">Белая (W)</option>
+                    <option value="B">Чёрная (B)</option>
+                </select>
+            </label>
+
+            <button id="newGameBtn" class="primary">Новая игра</button>
+            <button id="resetBtn">Сброс</button>
+        </div>
+
+        <div class="info">
+            <div id="status">Статус: готов</div>
+            <div style="margin-top:6px"><small>Кликните по пустой клетке, чтобы сделать ход. После хода отправляется запрос серверу — компьютер ответит ходом.</small></div>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <div class="board-container" id="boardWrap">
+
+        </div>
+
+        <div class="legend">
+            <div class="item"><span class="sb"></span> — Чёрные</div>
+            <div class="item"><span class="sw" style="background:#fff; border:1px solid rgba(0,0,0,0.15)"></span> — Белые</div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+
+    const apiBase = ''; // same origin; will call /api/squares/nextMove
+
+    let N = 8;
+    let board = []; // length N*N, '.' | 'W' | 'B'
+    let playerColor = 'W';
+    let myTurn = true;
+    let gameRunning = false;
+
+    const boardWrap = document.getElementById('boardWrap');
+    const statusEl = document.getElementById('status');
+    const sizeInput = document.getElementById('sizeInput');
+    const playerColorSelect = document.getElementById('playerColor');
+    const newGameBtn = document.getElementById('newGameBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function initNewGame() {
+      N = parseInt(sizeInput.value) || 8;
+      if (N < 3) N = 3;
+      if (N > 20) N = 20;
+      playerColor = playerColorSelect.value;
+      board = new Array(N*N).fill('.');
+      myTurn = true;
+      gameRunning = true;
+      renderBoard();
+      setStatus('Новая игра: ' + N + '×' + N + '. Ваш цвет: ' + playerColor);
+    }
+
+    function setStatus(txt) {
+      statusEl.innerText = 'Статус: ' + txt;
+    }
+
+    function renderBoard() {
+      boardWrap.innerHTML = '';
+      const boardEl = document.createElement('div');
+      boardEl.className = 'board';
+      boardEl.style.gridTemplateColumns = `repeat(${N}, ${getComputedStyle(document.documentElement).getPropertyValue('--cell-size') || '56px'})`;
+      boardEl.style.gridTemplateRows = `repeat(${N}, ${getComputedStyle(document.documentElement).getPropertyValue('--cell-size') || '56px'})`;
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const idx = y*N + x;
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.x = x; cell.dataset.y = y;
+          const val = board[idx];
+          if (val === 'W' || val === 'B') {
+            const chip = document.createElement('div');
+            chip.className = 'chip ' + (val === 'W' ? 'white' : 'black');
+            cell.appendChild(chip);
+          }
+          cell.addEventListener('click', onCellClick);
+          boardEl.appendChild(cell);
+        }
+      }
+      boardWrap.appendChild(boardEl);
+    }
+
+    function onCellClick(e) {
+      if (!gameRunning) { setStatus('Игра не запущена'); return; }
+      if (!myTurn) { setStatus('Сейчас ход компьютера'); return; }
+
+      const cell = e.currentTarget;
+      const x = parseInt(cell.dataset.x), y = parseInt(cell.dataset.y);
+      const idx = y*N + x;
+      if (board[idx] !== '.') { setStatus('Клетка занята'); return; }
+
+      board[idx] = playerColor;
+      myTurn = false;
+      renderBoard();
+      setStatus(`Вы поставили ${playerColor} (${x},${y}). Отправляем запрос серверу...`);
+
+      const dto = {
+        size: N,
+        data: board.join(''),
+        nextPlayerColor: (playerColor === 'W' ? 'B' : 'W') // ask server next move for opponent
+      };
+
+      fetch(apiBase + '/api/squares/nextMove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(dto)
+      })
+      .then(r => r.json())
+      .then(handleServerResponse)
+      .catch(err => {
+        console.error(err);
+        setStatus('Ошибка запроса: ' + err.message);
+        myTurn = true;
+      });
+    }
+
+    function handleServerResponse(res) {
+      // res: { move: {x,y,color} | null, result: "finished"/"draw"/null, winner, finalBoard }
+      if (!res) { setStatus('Неверный ответ сервера'); myTurn = true; return; }
+      if (res.result === 'finished') {
+        setStatus('Игра завершена. Победил: ' + res.winner);
+        if (res.finalBoard) {
+          loadBoardFromString(res.finalBoard);
+          renderBoard();
+        }
+        gameRunning = false;
+        return;
+      }
+      if (res.result === 'draw') {
+        setStatus('Игра завершена: ничья');
+        if (res.finalBoard) {
+          loadBoardFromString(res.finalBoard);
+          renderBoard();
+        }
+        gameRunning = false;
+        return;
+      }
+      // если есть ход
+      if (res.move && typeof res.move.x === 'number') {
+        const x = res.move.x, y = res.move.y, c = res.move.color;
+        if (x >=0 && y >=0 && x < N && y < N) {
+          board[y*N + x] = c;
+          renderBoard();
+          setStatus(`Компьютер (${c}) сходил: (${x},${y}). Ваш ход.`);
+        } else {
+          setStatus('Сервер вернул некорректный ход');
+        }
+        myTurn = true;
+      } else {
+        setStatus('Сервер не предложил ход. Проверь логику сервера.');
+        myTurn = true;
+      }
+    }
+
+    function loadBoardFromString(str) {
+      if (!str || str.length !== N*N) return;
+      board = str.split('').slice(0, N*N);
+    }
+
+    newGameBtn.addEventListener('click', () => initNewGame());
+    resetBtn.addEventListener('click', () => {
+      board = new Array(N*N).fill('.');
+      gameRunning = true; myTurn = (playerColor === playerColor); renderBoard();
+      setStatus('Доска очищена');
+    });
+
+    window.addEventListener('load', () => {
+      sizeInput.value = 8;
+      playerColorSelect.value = 'W';
+      initNewGame();
+    });
+</script>
+</body>
+</html>

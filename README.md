@@ -1,54 +1,22 @@
-# Squares Game API (Spring Boot)
+# Squares Game — Веб-приложение
 
-## Описание
-Это учебный web-сервис на Java Spring Boot, который реализует игру **"Квадратики"**.  
-Сервис принимает состояние игровой доски и вычисляет **следующий ход компьютера**, а также сообщает результат, если игра завершена.
+Приложение для игры в "Квадраты" против компьютера.  
+Состоит из двух частей:
+- **Backend** — REST API на Spring Boot (Java 17, Maven).
+- **Frontend** — простое веб-приложение (HTML/JS/CSS), взаимодействующее с API.
 
-## Технологии
-- Java 17
-- Spring Boot 3
-- REST API (JSON)
-- Maven
+---
 
-## Структура проекта
-- `GameEngine` — движок игры (логика из Задания 1)
-- `GameController` — REST-контроллер
-- `BoardDto`, `MoveResultDto` — DTO для входных/выходных данных
-- `GlobalExceptionHandler` — обработка ошибок
+## Запуск приложения
 
-## Запуск
-1. Клонировать репозиторий:
-   ```bash
-   git clone https://github.com/<ваш_логин>/<>.git
-   cd <>
-   mvn clean package
-   mvn spring-boot:run
-   ```
+### Требования
+- Java 17+
+- Maven 3.8+
+- Любой браузер (Chrome, Firefox, Edge)
 
-доступен на http://localhost:8080
-
-## API (для Postman / curl)
-
-## Endpoint
+### 1. Клонировать репозиторий
 ```bash
-POST /api/{rules}/nextMove
+git clone https://github.com/YulTartar/squere_test.git
+mvn spring-boot:run
 ```
-
-- POST /api/squares/nextMove
-  {
-  "size": 3,
-  "data": ".........",
-  "nextPlayerColor": "W"
-  }
-ответ
-  {
-  "move": {
-  "x": 0,
-  "y": 0,
-  "color": "W"
-  },
-  "result": null,
-  "winner": null,
-  "finalBoard": null
-  }
-
+доступен на http://localhost:8080
